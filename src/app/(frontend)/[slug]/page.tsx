@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect, redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 
 import config from '@/payload.config'
@@ -20,7 +20,36 @@ export default async function Page({
   })
 
   const page = docs[0]
-  if (!page) notFound()
+  if (!page) {
+    // No page at this slug — check for a configured redirect before 404ing.
+    const { docs: redirects } = await payload.find({
+      collection: 'redirects',
+      depth: 1, // populate the `to.reference` relationship
+      limit: 1,
+      where: {
+        or: [{ from: { equals: slug } }, { from: { equals: `/${slug}` } }],
+      },
+    })
+
+    const match = redirects[0]
+    if (match) {
+      const reference = match.to?.reference
+      let destination: string | undefined = match.to?.url ?? undefined
+
+      if (reference && typeof reference.value === 'object') {
+        destination = `/${reference.value.slug}`
+      }
+
+      if (destination) {
+        // '301' (Permanent) → permanentRedirect (HTTP 308)
+        // '302' (Temporary) → redirect (HTTP 307)
+        if (match.type === '301') permanentRedirect(destination)
+        redirect(destination)
+      }
+    }
+
+    notFound()
+  }
 
   return (
     <article

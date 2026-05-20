@@ -1,4 +1,5 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -29,5 +30,18 @@ export default buildConfig({
     url: process.env.DATABASE_URL || '',
   }),
   sharp,
-  plugins: [],
+  plugins: [
+    redirectsPlugin({
+      collections: ['pages'],
+      redirectTypes: ['301', '302'],
+      redirectTypeFieldOverride: {
+        defaultValue: '301',
+        // Friendly labels for editors; values stay as HTTP status codes.
+        options: [
+          { label: 'Permanent', value: '301' },
+          { label: 'Temporary', value: '302' },
+        ],
+      },
+    }),
+  ],
 })
